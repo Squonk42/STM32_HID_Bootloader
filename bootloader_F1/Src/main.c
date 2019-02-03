@@ -171,7 +171,6 @@ void Reset_Handler(void)
 
 	/* Wait 1us so the pull-up settles... */
 	delay(72);
-	LED2_OFF;
 
 	UploadStarted = false;
 	UploadFinished = false;
@@ -193,7 +192,6 @@ void Reset_Handler(void)
 		/* Disconnect USB to force a re-enumaration in all
 		 * cases
 		 */
-		LED2_ON;
 		USB_Shutdown();
 		delay(4000000L);
 		USB_Init();
@@ -212,11 +210,10 @@ void Reset_Handler(void)
 			;
 		}
 	}
-	LED2_ON;
 
 	/* Turn GPIO clocks off */
 	CLEAR_BIT(RCC->APB2ENR,
-		LED1_CLOCK | LED2_CLOCK | DISC_CLOCK/* | RCC_APB2ENR_IOPBEN*/);
+		LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
 
 	/* Setup the stack pointer to the user-defined one */
 	__set_MSP((*(volatile uint32_t *) USER_PROGRAM));

@@ -28,16 +28,6 @@
 	#define LED1_OFF		WRITE_REG(GPIOC->BSRR, GPIO_BSRR_BS13)
 	#define LED1_ON			WRITE_REG(GPIOC->BRR, GPIO_BRR_BR13)
 
-	//Second LED feature is not currently used.
-	#define LED2_CLOCK		0 //RCC_APB2ENR_IOPBEN
-	#define LED2_BIT_0		//CLEAR_BIT(GPIOB->CRL, GPIO_CRL_CNF1_0)
-	#define LED2_BIT_1		//CLEAR_BIT(GPIOB->CRL, GPIO_CRL_CNF1_1)
-	#define LED2_MODE		//SET_BIT(G1PIOB->CRL, GPIO_CRL_MODE1)
-	#define LED2_ON			//WRITE_REG(GPIOB->BSRR, GPIO_BSRR_BS1)
-	#define LED2_OFF		//WRITE_REG(GPIOB->BRR, GPIO_BRR_BR1)
-
-	//#define PB2_PULLDOWN
-
 #elif defined TARGET_GENERIC_F103_PD2
 	#define LED1_CLOCK		RCC_APB2ENR_IOPDEN
 	#define LED1_BIT_0		SET_BIT(GPIOD->CRL, GPIO_CRL_CNF2_0 | GPIO_CRL_MODE2)
@@ -138,25 +128,6 @@
 #endif
 #ifndef LED1_OFF
 #define LED1_OFF
-#endif
-
-#ifndef LED2_CLOCK
-#define LED2_CLOCK			0
-#endif
-#ifndef LED2_BIT_0
-#define LED2_BIT_0
-#endif
-#ifndef LED2_BIT_1
-#define LED2_BIT_1
-#endif
-#ifndef LED2_MODE
-#define LED2_MODE
-#endif
-#ifndef LED2_ON
-#define LED2_ON
-#endif
-#ifndef LED2_OFF
-#define LED2_OFF
 #endif
 
 #ifndef DISC_CLOCK

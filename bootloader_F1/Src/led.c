@@ -23,29 +23,22 @@
 void pins_init(void)
 {
 	SET_BIT(RCC->APB2ENR,
-		LED1_CLOCK | LED2_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
+		LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
 
 	LED1_BIT_0;
 	LED1_BIT_1;
 	LED1_MODE;
-
-	LED2_BIT_0;
-	LED2_BIT_1;
-	LED2_MODE;
 
 	DISC_BIT_0;
 	DISC_BIT_1;
 	DISC_MODE;
 	DISC_LOW;
 
+	/* PB2 is already in FLOATING mode by default. */
 #if defined PB2_PULLDOWN
 
 	SET_BIT(GPIOB->CRL, GPIO_CRL_CNF2_1);
 	CLEAR_BIT(GPIOB->ODR, GPIO_ODR_ODR2);
 
-#else
-
-	/* PB2 is already in FLOATING mode by default. */
 #endif
-
 }
