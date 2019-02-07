@@ -44,6 +44,9 @@
 /* Initial stack pointer index in vector table*/
 #define INITIAL_MSP			0
 
+/* Initial program counter index in vector table*/
+#define INITIAL_RESET_HANDLER		1
+
 /* Reset handler index in vector table*/
 #define USER_RESET_HANDLER		0x1c
 
@@ -54,13 +57,13 @@ typedef void (*funct_ptr)(void);
 void Reset_Handler(void);
 
 /* Minimal initial Flash-based vector table */
-uint32_t *VectorTable[] __attribute__((section(".isr_vector"))) = {
+uint32_t VectorTable[] __attribute__((section(".isr_vector"))) = {
 
 	/* Initial stack pointer (MSP) */
-	(uint32_t *) SRAM_END,
+	[INITIAL_MSP] = SRAM_END,
 
 	/* Initial program counter (PC): Reset handler */
-	(uint32_t *) Reset_Handler
+	[INITIAL_RESET_HANDLER] = (uint32_t) Reset_Handler
 };
 
 static void delay(uint32_t timeout)
