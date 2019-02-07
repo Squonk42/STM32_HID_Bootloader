@@ -81,7 +81,7 @@ void USB_Shutdown(void)
 {
 
 	/* Disable USB IRQ */
-	NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
+	//NVIC_DisableIRQ(USB_LP_CAN1_RX0_IRQn);
 	WRITE_REG(*ISTR, 0);
 	DeviceConfigured = 0;
 
