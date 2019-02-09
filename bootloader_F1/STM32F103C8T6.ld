@@ -29,6 +29,8 @@ SECTIONS
   .text 0x800F800 :
   {
     . = ALIGN(4);
+    _stext = .;        /* define a global symbols at start of code */
+    *(.reset_handler)  /* make sure the reset handler is linked first */
     *(.text)           /* .text sections (code) */
     *(.text*)          /* .text* sections (code) */
     *(.glue_7)         /* glue arm to thumb code */
@@ -86,7 +88,6 @@ SECTIONS
   .data : 
   {
     . = ALIGN(4);
-    . += 0x130;	       /* make room for the isr_vector table in RAM */
     _sdata = .;        /* create a global symbol at data start */
     *(.data)           /* .data sections */
     *(.data*)          /* .data* sections */

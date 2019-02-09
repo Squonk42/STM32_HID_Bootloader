@@ -31,24 +31,25 @@
 #include "config.h"
 #include "hid.h"
 #include "led.h"
-
-/* SRAM size */
-#define SRAM_SIZE			(20 * 1024)
-
-/* SRAM end (bottom of stack) */
-#define SRAM_END			(SRAM_BASE + SRAM_SIZE)
+#include "flash.h"
 
 /* User Program is at the start of the Flash memory. */
 #define USER_PROGRAM			FLASH_BASE
 
-/* Initial stack pointer index in vector table*/
-#define INITIAL_MSP			0
+/* End of stack symbol defined by the linker script */
+extern char _estack;
 
-/* Initial program counter index in vector table*/
-#define INITIAL_RESET_HANDLER		1
+/* Start of code text symbol defined by the linker script */
+extern uint8_t _stext;
 
-/* Reset handler index in vector table*/
-#define USER_RESET_HANDLER		0x1c
+/* Start of initialization data symbol defined by the linker script */
+extern uint8_t _sidata;
+
+/* Start of data symbol defined by the linker script */
+extern uint8_t _sdata;
+
+/* End of data symbol defined by the linker script */
+extern uint8_t _edata;
 
 /* Simple function pointer type to call user program */
 typedef void (*funct_ptr)(void);
@@ -57,10 +58,10 @@ typedef void (*funct_ptr)(void);
 void Reset_Handler(void);
 
 /* Minimal initial Flash-based vector table */
-uint32_t VectorTable[] __attribute__((section(".isr_vector"))) = {
+uint32_t VectorTable[] __attribute__ ((section(".isr_vector"))) = {
 
 	/* Initial stack pointer (MSP) */
-	[INITIAL_MSP] = SRAM_END,
+	[INITIAL_MSP] = (uint32_t) &_estack,
 
 	/* Initial program counter (PC): Reset handler */
 	[INITIAL_RESET_HANDLER] = (uint32_t) Reset_Handler
@@ -158,7 +159,28 @@ static void set_sysclock_to_72_mhz(void)
 	}
 }
 
-void Reset_Handler(void)
+static void copy_initialized_data(void)
+{
+	/* The source address of the initialization data in Flash memory is:
+	 *  - the offset between the data in Flash and the start of code
+	 *  - plus the actual address of the bootloader reset handler
+	 *  - minus 1 to remove the Thumb flag in the vector LSB bit
+	 */
+	uint8_t *src = (uint8_t *) (&_sidata - &_stext + RESET_HANDLER) - 1;
+	uint8_t *dst = &_sdata;
+
+	/* Copy the initialized data section from Flash to RAM.
+	 *
+	 * This way, the code has no more position dependence against
+	 * the data and becomes rellocatable, since all references
+	 * within the code itself are relative.
+	 */
+	while (dst < &_edata) {
+		*dst++ = *src++;
+	}
+}
+
+__attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 {
 
 	/* Setup the system clock (System clock source, PLL Multiplier
@@ -166,20 +188,15 @@ void Reset_Handler(void)
 	 */
 	set_sysclock_to_72_mhz();
 
-	/* Check for a magic word in BACKUP memory */
-	uint16_t magic_word = get_and_clear_magic_word();
-
 	/* Initialize GPIOs */
 	pins_init();
 
-	/* Wait 1us so the pull-up settles... */
-	delay(72);
+	/* Copy the initialized data section from Flash to RAM */
+	/* Helps to wait a few us so the pull-up settles... */
+	copy_initialized_data();
 
-	UploadStarted = false;
-	UploadFinished = false;
-	funct_ptr UserProgram =
-		(funct_ptr) *(volatile uint32_t *) (USER_PROGRAM +
-						    USER_RESET_HANDLER);
+	/* Check for a magic word in BACKUP memory */
+	uint16_t magic_word = get_and_clear_magic_word();
 
 	/* If:
 	 *  - PB2 (BOOT 1 pin) is HIGH or
@@ -188,7 +205,7 @@ void Reset_Handler(void)
 	 *    registers from the Arduino IDE
 	 * then enter HID bootloader...
 	 */
-	if ((magic_word == 0x424C) ||
+	if ((magic_word == (('B' << 8) | 'L')) ||
 		READ_BIT(GPIOB->IDR, GPIO_IDR_IDR2) ||
 		(check_user_code(USER_PROGRAM) == false)) {
 
@@ -198,6 +215,7 @@ void Reset_Handler(void)
 		USB_Shutdown();
 		delay(4000000L);
 		USB_Init();
+		UploadStarted = UploadFinished = false;
 		while (check_flash_complete() == false) {
 			USB_Poll();
 		};
@@ -209,23 +227,20 @@ void Reset_Handler(void)
 		NVIC_SystemReset();
 
 		/* Never reached */
-		for (;;) {
-			;
-		}
-	}
+	} else {
 
-	/* Turn GPIO clocks off */
-	CLEAR_BIT(RCC->APB2ENR,
-		LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
+		/* Turn GPIO clocks off */
+		CLEAR_BIT(RCC->APB2ENR,
+			LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
 
-	/* Setup the stack pointer to the user-defined one */
-	__set_MSP((*(volatile uint32_t *) USER_PROGRAM));
+		/* Setup the stack pointer to the user-defined one */
+		__set_MSP((*(volatile uint32_t *) USER_PROGRAM));
 
-	/* Jump to the user firmware entry point */
-	UserProgram();
+		/* Jump to the user firmware entry point */
+		funct_ptr UserProgram =	(funct_ptr) *(((volatile uint32_t *)
+			USER_PROGRAM) + USER_RESET_HANDLER);
+		UserProgram();
 
-	/* Never reached */
-	for (;;) {
-		;
+		/* Never reached */
 	}
 }

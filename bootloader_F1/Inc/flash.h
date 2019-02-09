@@ -21,6 +21,19 @@
 #ifndef FLASH_H_
 #define FLASH_H_
 
+/* Actual reset handler in force */
+#define RESET_HANDLER		(*(uint32_t *) 0x4)
+
+/* Initial stack pointer index in vector table */
+#define INITIAL_MSP			0
+
+/* Initial program counter index in vector table */
+#define INITIAL_RESET_HANDLER		1
+
+/* Reset handler index in vector table*/
+#define USER_RESET_HANDLER		7
+
+
 void FLASH_WritePage(uint16_t *page, uint16_t *data, uint16_t size);
 
 #endif /* FLASH_H_ */

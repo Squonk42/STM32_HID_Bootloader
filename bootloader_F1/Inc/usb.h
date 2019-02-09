@@ -769,7 +769,6 @@ enum EP_BUF_NUM
 /* Global Variables */
 extern volatile uint8_t DeviceAddress;
 extern volatile uint16_t DeviceConfigured;
-extern const uint16_t DeviceStatus;
 
 /* Function Prototypes */
 void USB_PMA2Buffer(uint8_t EPn);

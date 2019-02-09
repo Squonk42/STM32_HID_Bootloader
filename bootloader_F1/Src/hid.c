@@ -33,20 +33,11 @@
 /* This should be <= MAX_EP_NUM defined in usb.h */
 #define EP_NUM 			2
 
-/* Flash memory base address */
-#define FLASH_BASE_ADDRESS	0x08000000
-
-/* This should be the last page taken by the user application */
-#define MAX_PAGE		(64 - 2)
-
 /* Maximum packet size */
 #define MAX_PACKET_SIZE		8
 
 /* Command size */
 #define COMMAND_SIZE		64
-
-/* Page size */
-#define PAGE_SIZE		1024
 
 /* Buffer table offsset in PMA memory */
 #define BTABLE_OFFSET		(0x00)
@@ -60,8 +51,8 @@
 /* TX buffer base address */
 #define ENDP1_TXADDR		(0x100)
 
-/* The bootloader entry point function prototype */
-extern void Reset_Handler(void);
+/* Flash page size */
+#define PAGE_SIZE		1024
 
 /* Upload started flag */
 volatile bool UploadStarted;
@@ -70,7 +61,7 @@ volatile bool UploadStarted;
 volatile bool UploadFinished;
 
 /* Sent command (Received command is the same minus last byte) */
-static const uint8_t Command[] = {'B', 'T', 'L', 'D', 'C', 'M', 'D', 2};
+static uint8_t Command[] = {'B', 'T', 'L', 'D', 'C', 'M', 'D', 2};
 
 /* Flash page buffer */
 static uint8_t PageData[PAGE_SIZE];
@@ -82,7 +73,7 @@ static volatile uint8_t CurrentPage;
 static volatile uint16_t CurrentPageOffset;
 
 /* USB Descriptors */
-static const uint8_t USB_DeviceDescriptor[] = {
+static uint8_t USB_DeviceDescriptor[] = {
 	0x12,			// bLength
 	0x01,			// bDescriptorType (Device)
 	0x10, 0x01,		// bcdUSB 1.10
@@ -99,7 +90,7 @@ static const uint8_t USB_DeviceDescriptor[] = {
 	0x01 			// bNumConfigurations 1
 };
 
-static const uint8_t USB_ConfigurationDescriptor[] = {
+static uint8_t USB_ConfigurationDescriptor[] = {
 	0x09,			// bLength
 	0x02,			// bDescriptorType (Configuration)
 	0x22, 0x00,		// wTotalLength 34
@@ -135,7 +126,7 @@ static const uint8_t USB_ConfigurationDescriptor[] = {
 	0x05 			// bInterval 5 (2^(5-1)=16 micro-frames)
 };
 
-static const uint8_t USB_ReportDescriptor[32] = {
+static uint8_t USB_ReportDescriptor[32] = {
 	0x06, 0x00, 0xFF,	// Usage Page (Vendor Defined 0xFF00)
 	0x09, 0x01,		// Usage (0x01)
 	0xA1, 0x01,		// Collection (Application)
@@ -155,26 +146,29 @@ static const uint8_t USB_ReportDescriptor[32] = {
 };
 
 /* USB String Descriptors */
-static const uint8_t USB_LangIDStringDescriptor[] = {
+static uint8_t USB_LangIDStringDescriptor[] = {
 	0x04,			// bLength
 	0x03,			// bDescriptorType (String)
 	0x09, 0x04		// English (United States)
 };
 
-static const uint8_t USB_VendorStringDescriptor[] = {
+static uint8_t USB_VendorStringDescriptor[] = {
 	0x22,			// bLength
 	0x03,			// bDescriptorType (String)
 	'w', 0, 'w', 0, 'w', 0, '.', 0, 's', 0, 'e', 0, 'r', 0, 'a', 0, 's', 0,
 	'i', 0, 'd', 0, 'i', 0, 's', 0, '.', 0, 'g', 0, 'r', 0
 };
 
-static const uint8_t USB_ProductStringDescriptor[] = {
+static uint8_t USB_ProductStringDescriptor[] = {
 	0x2C,			// bLength
 	0x03,			// bDescriptorType (String)
 	'S', 0, 'T', 0, 'M', 0, '3', 0, '2', 0, 'F', 0, ' ', 0, 'H', 0, 'I', 0,
 	'D', 0, ' ', 0, 'B', 0, 'o', 0, 'o', 0, 't', 0, 'l', 0, 'o', 0, 'a', 0,
 	'd', 0, 'e', 0, 'r', 0
 };
+
+/* USB device status */
+uint16_t DeviceStatus = 0;
 
 static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 {
@@ -198,24 +192,19 @@ static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 		break;
 
 	case USB_STR_DESC_TYPE:
-		switch (setup_packet->wValue.L) {
-		case 0x00:
+
+		/* Avoid nested switch/case statements, as it
+		 * generates a non position-independent literal table
+		 */
+		if (setup_packet->wValue.L == 0x00) {
 			descriptor = (uint16_t *) USB_LangIDStringDescriptor;
 			length = sizeof (USB_LangIDStringDescriptor);
-			break;
-
-		case 0x01:
+		} else if (setup_packet->wValue.L == 0x01) {
 			descriptor = (uint16_t *) USB_VendorStringDescriptor;
 			length = sizeof (USB_VendorStringDescriptor);
-			break;
-
-		case 0x02:
+		} else if (setup_packet->wValue.L == 0x02) {
 			descriptor = (uint16_t *) USB_ProductStringDescriptor;
 			length = sizeof (USB_ProductStringDescriptor);
-			break;
-
-		default:
-			break;
 		}
 		break;
 
@@ -247,9 +236,6 @@ static uint8_t HIDUSB_PacketIsCommand(void)
 
 static void HIDUSB_HandleData(uint8_t *data)
 {
-	uint16_t *page_address;
-	uint32_t *patched_vector_table;
-
 	memcpy(PageData + CurrentPageOffset, data, MAX_PACKET_SIZE);
 	CurrentPageOffset += MAX_PACKET_SIZE;
 	if (CurrentPageOffset == COMMAND_SIZE) {
@@ -276,23 +262,27 @@ static void HIDUSB_HandleData(uint8_t *data)
 		if (CurrentPage == 0) {
 
 			/* Patch the user Vector Table */
-			patched_vector_table = (uint32_t *) PageData;
+			uint32_t *patched_vector_table =
+				(uint32_t *) PageData;
 
 			/* Make a backup of the user reset handler */
-			patched_vector_table[7] = patched_vector_table[1];
+			patched_vector_table[USER_RESET_HANDLER] =
+				patched_vector_table[INITIAL_RESET_HANDLER];
 
 			/* Replace it with the bootloader reset handler */
-			patched_vector_table[1] = (uint32_t) Reset_Handler;
-		} else if (CurrentPage > MAX_PAGE) {
+			patched_vector_table[INITIAL_RESET_HANDLER] =
+				RESET_HANDLER;
+		}
+		uint16_t *page_address = (uint16_t * ) (FLASH_BASE +
+			(CurrentPage * PAGE_SIZE));
+		if (page_address >= (uint16_t *) (RESET_HANDLER - 1)) {
 
 			/* Do not overwrite the bootloader */
 			return;
 		}
 		LED1_ON;
-		page_address = (uint16_t * ) (FLASH_BASE_ADDRESS +
-			(CurrentPage * PAGE_SIZE));
 		FLASH_WritePage(page_address, (uint16_t *) PageData,
-			PAGE_SIZE / 2);
+			PAGE_SIZE / sizeof (uint16_t));
 		CurrentPage++;
 		CurrentPageOffset = 0;
 		USB_SendData(ENDP1, (uint16_t *) Command,

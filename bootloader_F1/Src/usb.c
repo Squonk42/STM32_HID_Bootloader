@@ -35,7 +35,6 @@ USB_RxTxBuf_t RxTxBuffer[MAX_EP_NUM];
 
 volatile uint8_t DeviceAddress;
 volatile uint16_t DeviceConfigured;
-const uint16_t DeviceStatus;
 
 void USB_PMA2Buffer(uint8_t endpoint)
 {
