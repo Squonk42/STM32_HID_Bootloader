@@ -1,27 +1,45 @@
 /*
-* STM32 HID Bootloader - USB HID bootloader for STM32F10X
-* Copyright (c) 2018 Bruno Freitas - bruno@brunofreitas.com
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*
-* Split January 2019 from hid.c
-*	by Michel Stempin <michel.stempin@wanadoo.fr>
-*/
+ * STM32 HID Bootloader - USB HID bootloader for STM32F10X
+ * Copyright (c) 2018 Bruno Freitas - bruno@brunofreitas.com
+ *
+ * Split January 2019 from hid.c
+ *	by Michel Stempin <michel.stempin@wanadoo.fr>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
 
+/**
+ * @file flash.c
+ *
+ * @brief File containing the Flash functions.
+ */
 #include <stm32f10x.h>
 #include "flash.h"
 
+/**
+ * @brief Write a Flash page.
+ *
+ * @param[in] page
+ *  Pointer to the 16-bit aligned Flash page to write to.
+ *
+ * @param[in] data
+ *  Pointer to the 16-bit aligned input data buffer.
+ *
+ * @param[in] size
+ *  Size of the data input buffer in 16-bit words.
+ */
 void FLASH_WritePage(uint16_t *page, uint16_t *data, uint16_t size)
 {
 

@@ -1,25 +1,31 @@
 /*
-* STM32 HID Bootloader - USB HID bootloader for STM32F10X
-* Copyright (c) 2018 Bruno Freitas - bruno@brunofreitas.com
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*
-* Modified January 2019
-*	by Michel Stempin <michel.stempin@wanadoo.fr>
-*	Cleanup and optimizations
-*
-*/
+ * STM32 HID Bootloader - USB HID bootloader for STM32F10X
+ * Copyright (c) 2018 Bruno Freitas - bruno@brunofreitas.com
+ *
+ * Modified January 2019
+ *	by Michel Stempin <michel.stempin@wanadoo.fr>
+ *	Cleanup and optimizations
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+/**
+ * @file hid.c
+ *
+ * @brief File containing the HID USB handling.
+ */
 
 #include <stm32f10x.h>
 #include <string.h>
@@ -30,49 +36,49 @@
 #include "led.h"
 #include "flash.h"
 
-/* This should be <= MAX_EP_NUM defined in usb.h */
+/** This should be <= MAX_EP_NUM defined in usb.h */
 #define EP_NUM 			2
 
-/* Maximum packet size */
+/** Maximum packet size */
 #define MAX_PACKET_SIZE		8
 
-/* Command size */
+/** Command size */
 #define COMMAND_SIZE		64
 
-/* Buffer table offsset in PMA memory */
+/** Buffer table offsset in PMA memory */
 #define BTABLE_OFFSET		(0x00)
 
-/* EP0  */
-/* RX/TX buffer base address */
+/** EP0 RX buffer base address  */
 #define ENDP0_RXADDR		(0x18)
+
+/** EP0 TX buffer base address  */
 #define ENDP0_TXADDR		(0x58)
 
-/* EP1  */
-/* TX buffer base address */
+/** EP1 TX buffer base address */
 #define ENDP1_TXADDR		(0x100)
 
-/* Flash page size */
+/** Flash page size */
 #define PAGE_SIZE		1024
 
-/* Upload started flag */
+/** Upload started flag */
 volatile bool UploadStarted;
 
-/* Upload finished flag */
+/** Upload finished flag */
 volatile bool UploadFinished;
 
-/* Flash page buffer */
+/** Flash page buffer */
 static uint8_t PageData[PAGE_SIZE];
 
-/* Current page number (starts right after bootloader's end) */
+/** Current page number (starts right after bootloader's end) */
 static volatile uint8_t CurrentPage;
 
-/* Byte offset in flash page */
+/** Byte offset in flash page */
 static volatile uint16_t CurrentPageOffset;
 
-/* Sent command (Received command is the same minus last byte) */
+/** Sent command (Received command is the same minus last byte) */
 static uint8_t Command[] = {'B', 'T', 'L', 'D', 'C', 'M', 'D', 2};
 
-/* USB Descriptors */
+/** USB device descriptor */
 static uint8_t USB_DeviceDescriptor[] = {
 	0x12,			// bLength
 	0x01,			// bDescriptorType (Device)
@@ -90,6 +96,7 @@ static uint8_t USB_DeviceDescriptor[] = {
 	0x01 			// bNumConfigurations 1
 };
 
+/** USB configuration descriptor */
 static uint8_t USB_ConfigurationDescriptor[] = {
 	0x09,			// bLength
 	0x02,			// bDescriptorType (Configuration)
@@ -126,6 +133,7 @@ static uint8_t USB_ConfigurationDescriptor[] = {
 	0x05 			// bInterval 5 (2^(5-1)=16 micro-frames)
 };
 
+/** USB HID report descriptor */
 static uint8_t USB_ReportDescriptor[32] = {
 	0x06, 0x00, 0xFF,	// Usage Page (Vendor Defined 0xFF00)
 	0x09, 0x01,		// Usage (0x01)
@@ -145,14 +153,14 @@ static uint8_t USB_ReportDescriptor[32] = {
 	0xC0 			// End Collection
 };
 
-/* USB Language ID String Descriptor */
+/** USB Language ID String Descriptor */
 static uint8_t USB_LangIDStringDescriptor[] = {
 	0x04,			// bLength
 	0x03,			// bDescriptorType (String)
 	0x09, 0x04		// English (United States)
 };
 
-/* USB Vendor String Descriptor */
+/** USB Vendor String Descriptor */
 static uint8_t USB_VendorStringDescriptor[] = {
 	0x22,			// bLength
 	0x03,			// bDescriptorType (String)
@@ -160,7 +168,7 @@ static uint8_t USB_VendorStringDescriptor[] = {
 	'i', 0, 'd', 0, 'i', 0, 's', 0, '.', 0, 'g', 0, 'r', 0
 };
 
-/* USB Product String Descriptor */
+/** USB Product String Descriptor */
 static uint8_t USB_ProductStringDescriptor[] = {
 	0x2C,			// bLength
 	0x03,			// bDescriptorType (String)
@@ -169,7 +177,7 @@ static uint8_t USB_ProductStringDescriptor[] = {
 	'd', 0, 'e', 0, 'r', 0
 };
 
-/* USB String Descriptors */
+/** USB String Descriptors */
 static uint8_t *USB_StringDescriptors[] = {
 	USB_LangIDStringDescriptor,
 	USB_VendorStringDescriptor,
@@ -182,9 +190,15 @@ static uint8_t *USB_StringDescriptors[] = {
 	0
 };
 
-/* USB device status */
+/** USB device status */
 uint16_t DeviceStatus = 0;
 
+/**
+ * @brief Get the requested USB descriptor.
+ *
+ * @param[in] setup_packet
+ *  Pointer to the received setup packet.
+ */
 static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 {
 	uint16_t *descriptor = 0;
@@ -224,6 +238,11 @@ static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 	USB_SendData(0, descriptor, length);
 }
 
+/**
+ * @brief Check if an USB HID packet contains a bootlaoder command.
+ *
+ * @return the bootloader command index or 0xff in no command found.
+ */
 static uint8_t HIDUSB_PacketIsCommand(void)
 {
 	size_t i;
@@ -241,6 +260,14 @@ static uint8_t HIDUSB_PacketIsCommand(void)
 	return PageData[sizeof (Command) - 1];
 }
 
+/**
+ * @brief USB HID data handler function.
+ *
+ * This function handles a USB HID data packet.
+ *
+ * @param[in] data
+ *  Pointer to the received data buffer.
+ */
 static void HIDUSB_HandleData(uint8_t *data)
 {
 	memcpy(PageData + CurrentPageOffset, data, MAX_PACKET_SIZE);
@@ -298,6 +325,12 @@ static void HIDUSB_HandleData(uint8_t *data)
 	}
 }
 
+/**
+ * @brief Perform an USB Reset.
+ *
+ * This functions initializes the required endpoints and enables the
+ * USB peripheral.
+ */
 void USB_Reset(void)
 {
 
@@ -344,6 +377,12 @@ void USB_Reset(void)
 	WRITE_REG(*DADDR, DADDR_EF | 0);
 }
 
+/**
+ * @brief Handle an USB endpoint data.
+ *
+ * @param[in] status
+ *  Copy of the USB interrupt status register.
+ */
 void USB_EPHandler(uint16_t status)
 {
 	uint8_t endpoint = READ_BIT(status, USB_ISTR_EP_ID);

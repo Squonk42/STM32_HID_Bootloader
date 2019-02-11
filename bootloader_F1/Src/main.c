@@ -1,29 +1,35 @@
 /*
-* STM32 HID Bootloader - USB HID bootloader for STM32F10X
-* Copyright (c) 2018 Bruno Freitas - bruno@brunofreitas.com
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*
-* Modified 20 April 2018
-*	by Vassilis Serasidis <info@serasidis.gr>
-*	This HID bootloader works with STM32F103 + STM32duino + Arduino IDE <http://www.stm32duino.com/>
-*
-* Modified January 2019
-*	by Michel Stempin <michel.stempin@wanadoo.fr>
-*	Cleanup and optimizations
-*
-*/
+ * STM32 HID Bootloader - USB HID bootloader for STM32F10X
+ * Copyright (c) 2018 Bruno Freitas - bruno@brunofreitas.com
+ *
+ * Modified 20 April 2018
+ *	by Vassilis Serasidis <info@serasidis.gr>
+ *	This HID bootloader works with STM32F103 + STM32duino + Arduino IDE <http://www.stm32duino.com/>
+ *
+ * Modified January 2019
+ *	by Michel Stempin <michel.stempin@wanadoo.fr>
+ *	Cleanup and optimizations
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+/**
+ * @file main.c
+ *
+ * @brief Main file for the USB HID bootloader for the STM32F10X.
+ */
 
 #include <stm32f10x.h>
 #include <stdbool.h>
@@ -33,43 +39,46 @@
 #include "led.h"
 #include "flash.h"
 
-/* User Program is at the start of the Flash memory. */
+/** User Program is at the start of the Flash memory. */
 #define USER_PROGRAM			FLASH_BASE
 
-/* Magic word value stored in BACKUP memory to force entering the bootloader */
+/** Magic word value stored in BACKUP memory to force entering the bootloader */
 #define MAGIC_WORD			(('B' << 8) | 'L')
 
-/* End of stack symbol defined by the linker script */
+/** End of stack symbol defined by the linker script */
 extern char _estack;
 
-/* Start of code text symbol defined by the linker script */
+/** Start of code text symbol defined by the linker script */
 extern uint8_t _stext;
 
-/* Start of initialization data symbol defined by the linker script */
+/** Start of initialization data symbol defined by the linker script */
 extern uint8_t _sidata;
 
-/* Start of data symbol defined by the linker script */
+/** Start of data symbol defined by the linker script */
 extern uint8_t _sdata;
 
-/* End of data symbol defined by the linker script */
+/** End of data symbol defined by the linker script */
 extern uint8_t _edata;
 
-/* Simple function pointer type to call user program */
+/** Simple function pointer type to call user program */
 typedef void (*funct_ptr)(void);
 
-/* The bootloader entry point function prototype */
+/** The bootloader entry point function prototype */
 void Reset_Handler(void);
 
-/* Minimal initial Flash-based vector table */
+/** Minimal initial Flash-based vector table */
 uint32_t VectorTable[] __attribute__ ((section(".isr_vector"))) = {
 
-	/* Initial stack pointer (MSP) */
+	/** Initial stack pointer (MSP) */
 	[INITIAL_MSP] = (uint32_t) &_estack,
 
-	/* Initial program counter (PC): Reset handler */
+	/** Initial program counter (PC): Reset handler */
 	[INITIAL_RESET_HANDLER] = (uint32_t) Reset_Handler
 };
 
+/**
+ * @brief Basic delay function.
+ */
 static void delay(uint32_t timeout)
 {
 	for (uint32_t i = 0; i < timeout; i++) {
@@ -77,6 +86,15 @@ static void delay(uint32_t timeout)
 	}
 }
 
+/**
+ * @brief Check if the Flash is complete.
+ *
+ * It also blinks the LED before the upload is started. Blinking is
+ * designed to be nervous when running @ 72MHz, so it is not confused
+ * with the one from the Blink Arduino sketch.
+ *
+ * @return true if Flash is complete, false otherwise.
+ */
 static bool check_flash_complete(void)
 {
 	static uint32_t counter;
@@ -93,6 +111,17 @@ static bool check_flash_complete(void)
 	return UploadFinished;
 }
 
+/**
+ * @brief Check if the user code is valid.
+ *
+ * The check consists in making sure the user stack pointer in the
+ * Vector Table points to somewhere in RAM.
+ *
+ * @param[in] user_address
+ *   The user code start address.
+ *
+ * @return true if the user code is valid, false otherwise.
+ */
 static bool check_user_code(uint32_t user_address)
 {
 	uint32_t sp = *(volatile uint32_t *) user_address;
@@ -102,6 +131,14 @@ static bool check_user_code(uint32_t user_address)
 	return ((sp & 0x2FFE0000) == SRAM_BASE) ? true : false;
 }
 
+/**
+ * @brief Check and clear the magic word in BACKUP memory.
+ *
+ * The word in data in register 10 of BACKUP memory is checked against
+ * a magic value ('B', 'L') and cleared.
+ *
+ * @return true if the magic word is found, false otherwise.
+ */
 static bool get_and_clear_magic_word(void)
 {
 
@@ -129,6 +166,21 @@ static bool get_and_clear_magic_word(void)
 	return value == MAGIC_WORD;
 }
 
+/**
+ * @brief Setup the system clocks to run @ 72MHz.
+ *
+ * USB requires a system clock of at least 48 MHz based on the
+ * High-Speed External crystal (HSE).
+ *
+ * Based on a common 8 MHz crystal frequency, the system clock is set
+ * to the maximum frequency of 72 MHz by using the PLL with a 9x
+ * multiplication factor, while the peripheral clocks are set to their
+ * maximum operating frequency of 36 MHz for the first peripheral
+ * bank, and 72 MHz for the second one.
+ *
+ * Flash memory access is also optimized by enabling the prefetch
+ * buffer and setting its latency according to the system clock.
+ */
 static void set_sysclock_to_72_mhz(void)
 {
 
@@ -167,28 +219,43 @@ static void set_sysclock_to_72_mhz(void)
 	}
 }
 
+/**
+ * @brief Copy the initialized data section from Flash to RAM.
+ *
+ * This way, the code has no more position dependence against the data
+ * and becomes rellocatable, since all references within the code
+ * itself are relative.
+ *
+ * The source address of the initialization data in Flash memory is:
+ *  - the offset between the data in Flash and the start of code
+ *  - plus the actual address of the bootloader reset handler
+ *    from  the vector table
+ *  - minus 1 to remove the Thumb flag in the vector LSB bit
+ */
 static void copy_initialized_data(void)
 {
-	/* The source address of the initialization data in Flash memory is:
-	 *  - the offset between the data in Flash and the start of code
-	 *  - plus the actual address of the bootloader reset handler
-	 *    from  the vector table
-	 *  - minus 1 to remove the Thumb flag in the vector LSB bit
-	 */
 	uint8_t *src = (uint8_t *) (&_sidata - &_stext + RESET_HANDLER) - 1;
 	uint8_t *dst = &_sdata;
 
-	/* Copy the initialized data section from Flash to RAM.
-	 *
-	 * This way, the code has no more position dependence against
-	 * the data and becomes rellocatable, since all references
-	 * within the code itself are relative.
-	 */
 	while (dst < &_edata) {
 		*dst++ = *src++;
 	}
 }
 
+/**
+ * @brief Reset handler.
+ *
+ * This function is called right after power up by setting its address
+ * into the Vector Table reset handler entry.
+ *
+ * This function is never called from other places, and never returns,
+ * so it does not need the usual function prologue/epilogue.
+ *
+ * It is placed in a special ".reset_handler" section that will be the
+ * first code section in Flash memory: this is important as we perform
+ * some computation to locate the initialized data section relative to
+ * it when copying this section from Flash to RAM.
+ */
 __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 {
 

@@ -55,13 +55,14 @@ CP = cp
 MKDIR = mkdir
 RM = rm
 RMDIR = rmdir
+DOXYGEN = doxygen
 
 BUILD_DIR = build
 BIN_DIR = bootloader_only_binaries
 
 program: $(BUILD_DIR)/$(TARGET).hex
 	$(FLASH) write $(BUILD_DIR)/$(TARGET).bin 0x8000000
-.PHONY: all build output info size clean flash
+.PHONY: all build output info size clean flash doc
 
 all: $(SRCS) clean gccversion output info size
 
@@ -185,6 +186,9 @@ $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
 
 gccversion:
 	@$(CC) --version
+
+doc:
+	@$(DOXYGEN)
 
 info: $(BUILD_DIR)/$(TARGET).elf
 	$(ECHO) "INFO    $<"
