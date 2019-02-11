@@ -36,6 +36,9 @@
 /* User Program is at the start of the Flash memory. */
 #define USER_PROGRAM			FLASH_BASE
 
+/* Magic word value stored in BACKUP memory to force entering the bootloader */
+#define MAGIC_WORD			(('B' << 8) | 'L')
+
 /* End of stack symbol defined by the linker script */
 extern char _estack;
 
@@ -78,17 +81,16 @@ static bool check_flash_complete(void)
 {
 	static uint32_t counter;
 
-	if (UploadFinished == true) {
-		return true;
-	}
 	if (UploadStarted == false) {
+
+		/* Blink the LED nervously */
 		if (counter++ & 0x00004000) {
 			LED1_ON;
 		} else {
 			LED1_OFF;
 		}
 	}
-	return false;
+	return UploadFinished;
 }
 
 static bool check_user_code(uint32_t user_address)
@@ -100,25 +102,31 @@ static bool check_user_code(uint32_t user_address)
 	return ((sp & 0x2FFE0000) == SRAM_BASE) ? true : false;
 }
 
-static uint16_t get_and_clear_magic_word(void)
+static bool get_and_clear_magic_word(void)
 {
 
 	/* Enable the power and backup interface clocks by setting the
 	 * PWREN and BKPEN bits in the RCC_APB1ENR register
 	 */
 	SET_BIT(RCC->APB1ENR, RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN);
-	uint16_t value = READ_REG(BKP->DR10);
-	if (value) {
 
-		/* Enable write access to the backup registers and the
-		 * RTC.
-		 */
-		SET_BIT(PWR->CR, PWR_CR_DBP);
-		WRITE_REG(BKP->DR10, 0x0000);
-		CLEAR_BIT(PWR->CR, PWR_CR_DBP);
-	}
+	/* Read the magic word */
+	uint16_t value = READ_REG(BKP->DR10);
+
+	/* Enable write access to the backup registers and the RTC. */
+	SET_BIT(PWR->CR, PWR_CR_DBP);
+
+	/* Clear the magic word */
+	WRITE_REG(BKP->DR10, 0x0000);
+
+	/* Disable write access to the backup registers and the RTC. */
+	CLEAR_BIT(PWR->CR, PWR_CR_DBP);
+
+	/* Disable the power and backup interface clocks by clearing
+	 * the PWREN and BKPEN bits in the RCC_APB1ENR register
+	 */
 	CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_BKPEN | RCC_APB1ENR_PWREN);
-	return value;
+	return value == MAGIC_WORD;
 }
 
 static void set_sysclock_to_72_mhz(void)
@@ -164,6 +172,7 @@ static void copy_initialized_data(void)
 	/* The source address of the initialization data in Flash memory is:
 	 *  - the offset between the data in Flash and the start of code
 	 *  - plus the actual address of the bootloader reset handler
+	 *    from  the vector table
 	 *  - minus 1 to remove the Thumb flag in the vector LSB bit
 	 */
 	uint8_t *src = (uint8_t *) (&_sidata - &_stext + RESET_HANDLER) - 1;
@@ -195,17 +204,14 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 	/* Helps to wait a few us so the pull-up settles... */
 	copy_initialized_data();
 
-	/* Check for a magic word in BACKUP memory */
-	uint16_t magic_word = get_and_clear_magic_word();
-
 	/* If:
-	 *  - PB2 (BOOT 1 pin) is HIGH or
-	 *  - no User Code is uploaded to the MCU or
 	 *  - a magic word was stored in the battery-backed RAM
-	 *    registers from the Arduino IDE
+	 *    registers from the Arduino IDE or
+	 *  - PB2 (BOOT 1 pin) is HIGH or
+	 *  - no User Code is uploaded to the MCU
 	 * then enter HID bootloader...
 	 */
-	if ((magic_word == (('B' << 8) | 'L')) ||
+	if (get_and_clear_magic_word() ||
 		READ_BIT(GPIOB->IDR, GPIO_IDR_IDR2) ||
 		(check_user_code(USER_PROGRAM) == false)) {
 
@@ -222,25 +228,18 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 
 		/* Reset the USB */
 		USB_Shutdown();
-
-		/* Reset the STM32 */
-		NVIC_SystemReset();
-
-		/* Never reached */
-	} else {
-
-		/* Turn GPIO clocks off */
-		CLEAR_BIT(RCC->APB2ENR,
-			LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
-
-		/* Setup the stack pointer to the user-defined one */
-		__set_MSP((*(volatile uint32_t *) USER_PROGRAM));
-
-		/* Jump to the user firmware entry point */
-		funct_ptr UserProgram =	(funct_ptr) *(((volatile uint32_t *)
-			USER_PROGRAM) + USER_RESET_HANDLER);
-		UserProgram();
-
-		/* Never reached */
 	}
+
+	/* Turn GPIO clocks off */
+	CLEAR_BIT(RCC->APB2ENR,	LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
+
+	/* Setup the stack pointer to the user-defined one */
+	__set_MSP((*(volatile uint32_t *) USER_PROGRAM));
+
+	/* Jump to the user firmware entry point */
+	funct_ptr UserProgram =	(funct_ptr) *(((volatile uint32_t *)
+		USER_PROGRAM) + USER_RESET_HANDLER);
+	UserProgram();
+
+	/* Never reached */
 }
