@@ -145,13 +145,14 @@ static uint8_t USB_ReportDescriptor[32] = {
 	0xC0 			// End Collection
 };
 
-/* USB String Descriptors */
+/* USB Language ID String Descriptor */
 static uint8_t USB_LangIDStringDescriptor[] = {
 	0x04,			// bLength
 	0x03,			// bDescriptorType (String)
 	0x09, 0x04		// English (United States)
 };
 
+/* USB Vendor String Descriptor */
 static uint8_t USB_VendorStringDescriptor[] = {
 	0x22,			// bLength
 	0x03,			// bDescriptorType (String)
@@ -159,12 +160,20 @@ static uint8_t USB_VendorStringDescriptor[] = {
 	'i', 0, 'd', 0, 'i', 0, 's', 0, '.', 0, 'g', 0, 'r', 0
 };
 
+/* USB Product String Descriptor */
 static uint8_t USB_ProductStringDescriptor[] = {
 	0x2C,			// bLength
 	0x03,			// bDescriptorType (String)
 	'S', 0, 'T', 0, 'M', 0, '3', 0, '2', 0, 'F', 0, ' ', 0, 'H', 0, 'I', 0,
 	'D', 0, ' ', 0, 'B', 0, 'o', 0, 'o', 0, 't', 0, 'l', 0, 'o', 0, 'a', 0,
 	'd', 0, 'e', 0, 'r', 0
+};
+
+/* USB String Descriptors */
+static uint8_t *USB_StringDescriptors[] = {
+	USB_LangIDStringDescriptor,
+	USB_VendorStringDescriptor,
+	USB_ProductStringDescriptor
 };
 
 /* USB device status */
@@ -192,19 +201,11 @@ static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 		break;
 
 	case USB_STR_DESC_TYPE:
-
-		/* Avoid nested switch/case statements, as it
-		 * generates a non position-independent literal table
-		 */
-		if (setup_packet->wValue.L == 0x00) {
-			descriptor = (uint16_t *) USB_LangIDStringDescriptor;
-			length = sizeof (USB_LangIDStringDescriptor);
-		} else if (setup_packet->wValue.L == 0x01) {
-			descriptor = (uint16_t *) USB_VendorStringDescriptor;
-			length = sizeof (USB_VendorStringDescriptor);
-		} else if (setup_packet->wValue.L == 0x02) {
-			descriptor = (uint16_t *) USB_ProductStringDescriptor;
-			length = sizeof (USB_ProductStringDescriptor);
+		; unsigned int i = setup_packet->wValue.L;
+		if (i < sizeof (USB_StringDescriptors) /
+			sizeof (USB_StringDescriptors[0])) {
+			descriptor = (uint16_t *) USB_StringDescriptors[i];
+			length = *(uint8_t *) descriptor;
 		}
 		break;
 
