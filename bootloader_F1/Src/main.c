@@ -211,7 +211,7 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 	 *  - no User Code is uploaded to the MCU
 	 * then enter HID bootloader...
 	 */
-	if (get_and_clear_magic_word() ||
+	while (get_and_clear_magic_word() ||
 		READ_BIT(GPIOB->IDR, GPIO_IDR_IDR2) ||
 		(check_user_code(USER_PROGRAM) == false)) {
 
@@ -228,6 +228,8 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 
 		/* Reset the USB */
 		USB_Shutdown();
+
+		/* Do not exit until we get a valid user program */
 	}
 
 	/* Turn GPIO clocks off */

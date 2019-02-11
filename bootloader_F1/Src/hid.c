@@ -60,9 +60,6 @@ volatile bool UploadStarted;
 /* Upload finished flag */
 volatile bool UploadFinished;
 
-/* Sent command (Received command is the same minus last byte) */
-static uint8_t Command[] = {'B', 'T', 'L', 'D', 'C', 'M', 'D', 2};
-
 /* Flash page buffer */
 static uint8_t PageData[PAGE_SIZE];
 
@@ -71,6 +68,9 @@ static volatile uint8_t CurrentPage;
 
 /* Byte offset in flash page */
 static volatile uint16_t CurrentPageOffset;
+
+/* Sent command (Received command is the same minus last byte) */
+static uint8_t Command[] = {'B', 'T', 'L', 'D', 'C', 'M', 'D', 2};
 
 /* USB Descriptors */
 static uint8_t USB_DeviceDescriptor[] = {
@@ -173,7 +173,13 @@ static uint8_t USB_ProductStringDescriptor[] = {
 static uint8_t *USB_StringDescriptors[] = {
 	USB_LangIDStringDescriptor,
 	USB_VendorStringDescriptor,
-	USB_ProductStringDescriptor
+	USB_ProductStringDescriptor,
+
+	/* This zero here is just to make this array non-const, so it
+	 * will placed in RAM and the bootloader will still be
+	 * rellocatable
+	 */
+	0
 };
 
 /* USB device status */
@@ -298,6 +304,12 @@ void USB_Reset(void)
 	/* Initialize Flash Page Settings */
 	CurrentPage = 0;
 	CurrentPageOffset = 0;
+
+	/* This zero here is just to make this array non-const, so it
+	 * will placed in RAM and the bootloader will still be
+	 * rellocatable
+	 */
+	USB_StringDescriptors[3] = 0;
 
 	/* Set buffer descriptor table offset in PMA memory */
 	WRITE_REG(*BTABLE, BTABLE_OFFSET);
