@@ -36,7 +36,7 @@
 #include "usb.h"
 #include "config.h"
 #include "hid.h"
-#include "led.h"
+#include "gpio.h"
 #include "flash.h"
 
 /** User Program is at the start of the Flash memory. */
@@ -265,7 +265,7 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 	set_sysclock_to_72_mhz();
 
 	/* Initialize GPIOs */
-	pins_init();
+	GPIO_Init();
 
 	/* Copy the initialized data section from Flash to RAM */
 	/* Helps to wait a few us so the pull-up settles... */

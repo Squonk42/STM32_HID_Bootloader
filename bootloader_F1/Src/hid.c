@@ -33,7 +33,7 @@
 #include "config.h"
 #include "usb.h"
 #include "hid.h"
-#include "led.h"
+#include "gpio.h"
 #include "flash.h"
 
 /** This should be <= MAX_EP_NUM defined in usb.h */

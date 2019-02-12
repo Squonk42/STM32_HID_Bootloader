@@ -16,9 +16,9 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef LED_H_
-#define LED_H_
+#ifndef GPIO_H_
+#define GPIO_H_
 
-void pins_init(void);
+void GPIO_Init(void);
 
-#endif /* LED_H_ */
+#endif /* GPIO_H_ */

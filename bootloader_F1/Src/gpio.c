@@ -17,19 +17,19 @@
  */
 
 /**
- * @file led.c
+ * @file gpio.c
  *
  * @brief File that contains the LED and GPIO functions.
  */
 
 #include <stm32f10x.h>
 #include "config.h"
-#include "led.h"
+#include "gpio.h"
 
 /**
- * @brief Initialize the LED and GPIO pins.
+ * @brief Initialize the GPIO pins.
  */
-void pins_init(void)
+void GPIO_Init(void)
 {
 	/* Initialize the required GPIO clocks */
 	SET_BIT(RCC->APB2ENR,

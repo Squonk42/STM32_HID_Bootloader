@@ -4,7 +4,7 @@ DEVICE = STM32F10X_MD
 
 VECTOR_TABLE_OFFSET = 0x0000
 
-C_SRCS = Src/main.c Src/usb.c Src/hid.c Src/led.c Src/flash.c
+C_SRCS = Src/main.c Src/usb.c Src/hid.c Src/gpio.c Src/flash.c
 
 # Be silent per default, but 'make V=1' will show all compiler calls.
 # If you're insane, V=99 will print out all sorts of things.
