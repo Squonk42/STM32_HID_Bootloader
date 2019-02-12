@@ -178,16 +178,16 @@ static uint8_t USB_ProductStringDescriptor[] = {
 };
 
 /** USB String Descriptors */
+/* Force this array to be in the .data initialiazed data section in
+ *  RAM, otherwise the compiler optimizes it to be in read-only data
+ *  section in Flash memory, and access is then performed using
+ *  absolute addresses, making the bootloader non-rellocatable
+ */
+__attribute__ ((section(".data")))
 static uint8_t *USB_StringDescriptors[] = {
 	USB_LangIDStringDescriptor,
 	USB_VendorStringDescriptor,
 	USB_ProductStringDescriptor,
-
-	/* This zero here is just to make this array non-const, so it
-	 * will placed in RAM and the bootloader will still be
-	 * rellocatable
-	 */
-	0
 };
 
 /** USB device status */
@@ -337,12 +337,6 @@ void USB_Reset(void)
 	/* Initialize Flash Page Settings */
 	CurrentPage = 0;
 	CurrentPageOffset = 0;
-
-	/* This zero here is just to make this array non-const, so it
-	 * will placed in RAM and the bootloader will still be
-	 * rellocatable
-	 */
-	USB_StringDescriptors[3] = 0;
 
 	/* Set buffer descriptor table offset in PMA memory */
 	WRITE_REG(*BTABLE, BTABLE_OFFSET);
