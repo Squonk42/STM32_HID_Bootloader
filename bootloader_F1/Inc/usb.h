@@ -23,57 +23,60 @@
 #ifndef USB_H_
 #define USB_H_
 
-// Define here the max endpoint number for your USB device(s)
+/** Defines the max endpoint number for your USB device(s) */
 #define MAX_EP_NUM 2
 
-// Define here the max buffer size for your USB devices(s) endpoints
+/* Defines the max buffer size for your USB devices(s) endpoints */
 #define MAX_BUFFER_SIZE 64
 
+/** Type for an USB endpoint RX/TX buffer structure */
 typedef struct {
-	uint16_t RXB[MAX_BUFFER_SIZE / 2];
-	uint16_t *TXB;
-	uint8_t RXL;
-	uint8_t TXL;
-	uint8_t MaxPacketSize;
+	uint16_t RXB[MAX_BUFFER_SIZE / 2]; /**< Endpoint RX word-aligned buffer */
+	uint16_t *TXB; /**< Endpoint TX word-aligned buffer pointer */
+	uint8_t RXL; /**< Endpoint TX buffer length in words */
+	uint8_t TXL; /**< Endpoint TX buffer length in words */
+	uint8_t MaxPacketSize; /**< Maimum packet size for this endpoint*/
 } USB_RxTxBuf_t;
 
 extern USB_RxTxBuf_t RxTxBuffer[MAX_EP_NUM];
 
 /* USB Standard Request Codes */
-#define USB_REQUEST_GET_STATUS				0x00
-#define USB_REQUEST_CLEAR_FEATURE			0x01
-#define USB_REQUEST_SET_FEATURE				0x03
-#define USB_REQUEST_SET_ADDRESS				0x05
-#define USB_REQUEST_GET_DESCRIPTOR		0x06
-#define USB_REQUEST_SET_DESCRIPTOR		0x07
+#define USB_REQUEST_GET_STATUS		0x00
+#define USB_REQUEST_CLEAR_FEATURE	0x01
+#define USB_REQUEST_SET_FEATURE		0x03
+#define USB_REQUEST_SET_ADDRESS		0x05
+#define USB_REQUEST_GET_DESCRIPTOR	0x06
+#define USB_REQUEST_SET_DESCRIPTOR	0x07
 #define USB_REQUEST_GET_CONFIGURATION	0x08
 #define USB_REQUEST_SET_CONFIGURATION	0x09
-#define USB_REQUEST_GET_INTERFACE			0x0A
-#define USB_REQUEST_SET_INTERFACE			0x0B
-#define USB_REQUEST_SYNC_FRAME				0x0C
+#define USB_REQUEST_GET_INTERFACE	0x0A
+#define USB_REQUEST_SET_INTERFACE	0x0B
+#define USB_REQUEST_SYNC_FRAME		0x0C
 
 /* USB Descriptor Types */
-#define USB_DEVICE_DESC_TYPE			0x01
-#define USB_CFG_DESC_TYPE					0x02
-#define USB_STR_DESC_TYPE					0x03
-#define USB_IFACE_DESC_TYPE				0x04
-#define USB_EP_DESC_TYPE					0x05
+#define USB_DEVICE_DESC_TYPE		0x01
+#define USB_CFG_DESC_TYPE		0x02
+#define USB_STR_DESC_TYPE		0x03
+#define USB_IFACE_DESC_TYPE		0x04
+#define USB_EP_DESC_TYPE		0x05
 #define USB_DEVICE_QR_DESC_TYPE		0x06
 #define USB_OSPEED_CFG_DESC_TYPE	0x07
 #define USB_IFACE_PWR_DESC_TYPE		0x08
-#define USB_REPORT_DESC_TYPE			0x22
+#define USB_REPORT_DESC_TYPE		0x22
 
+/** USB Word type */
 typedef struct {
-	uint8_t L :8;
-	uint8_t H :8;
+	uint8_t L :8; /**< Lowest byte */
+	uint8_t H :8; /**< Highest byte */
 } USB_WByte;
 
+/** USB SETUP packet type */
 typedef struct {
-	uint8_t bmRequestType;
-	uint8_t bRequest;
-	USB_WByte wValue;
-	USB_WByte wIndex;
-	uint16_t wLength;
+	uint8_t bmRequestType; /**< bmRequesttype */
+	uint8_t bRequest; /**< bRequest */
+	USB_WByte wValue; /**<  wValue */
+	USB_WByte wIndex; /**< wIndex */
+	uint16_t wLength; /**< wLength */
 } USB_SetupPacket;
 
 /* Includes ------------------------------------------------------------------*/
@@ -752,18 +755,21 @@ enum EP_BUF_NUM
 #define USB_ADDRn_RX_1	(2) /* Reception buffer address #1 index in btable */
 #define USB_COUNTn_RX_1	(3) /* Reception byte count #1 index in btable */
 
+/** Macro to toggle bits in a peripheral register with insane toggle bits */
 #define TOGGLE_REG(REG, CLEARMASK, SETMASK, TOGGLEMASK) \
 	WRITE_REG((REG), \
 		((((READ_REG(REG)) & (~(CLEARMASK))) | \
-				(SETMASK)) ^ \
+			(SETMASK)) ^ \
 			(TOGGLEMASK)))
 
+/** Macro to set an USB endpoint RX status */
 #define SET_RX_STATUS(bEpNum, wStatus) \
 	TOGGLE_REG(EP0REG[bEpNum], \
 		   EP_CTR_RX | EP_DTOG_RX | EPTX_STAT | EP_DTOG_TX, \
 		   0, \
 		   wStatus)
 
+/** Macro to set an USB endpoint TX status */
 #define SET_TX_STATUS(bEpNum, wStatus) \
 	TOGGLE_REG(EP0REG[bEpNum], \
 		   EP_DTOG_RX | EPRX_STAT | EP_CTR_TX | EP_DTOG_TX, \
