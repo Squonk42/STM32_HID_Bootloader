@@ -30,7 +30,7 @@
 #include <stm32f10x.h>
 #include <string.h>
 #include <stdbool.h>
-#include "config.h"
+#include "main.h"
 #include "usb.h"
 #include "hid.h"
 #include "gpio.h"
@@ -315,22 +315,20 @@ static void HIDUSB_HandleData(uint8_t *data)
 			/* Replace it with the bootloader reset handler */
 			patched_vector_table[INITIAL_RESET_HANDLER] =
 				RESET_HANDLER;
-		}
-		uint16_t *page_address = (uint16_t * ) (FLASH_BASE +
-			(CurrentPage * PAGE_SIZE));
-		if (page_address >= (uint16_t *) (RESET_HANDLER - 1)) {
 
-			/* Do not overwrite the bootloader */
-			return;
+			/* Copy the pin configuration data */
+			for (int pin = BOOT_PIN; pin <= DISC_PIN; pin++) {
+				patched_vector_table[pin] = VectorTable[pin];
+			}
 		}
-		LED1_ON;
+		GPIO_Set(LED_PIN);
 		FLASH_WritePage(page_address, (uint16_t *) PageData,
 			PAGE_SIZE / sizeof (uint16_t));
 		CurrentPage++;
 		CurrentPageOffset = 0;
 		USB_SendData(ENDP1, (uint16_t *) Command,
 			sizeof (Command));
-		LED1_OFF;
+		GPIO_Clear(LED_PIN);
 	}
 }
 

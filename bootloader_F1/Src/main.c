@@ -34,16 +34,23 @@
 #include <stm32f10x.h>
 #include <stdbool.h>
 #include "usb.h"
-#include "config.h"
 #include "hid.h"
 #include "gpio.h"
 #include "flash.h"
+#include "config.h"
 
 /** User Program is at the start of the Flash memory. */
 #define USER_PROGRAM			FLASH_BASE
 
 /** Magic word value stored in BACKUP memory to force entering the bootloader */
 #define MAGIC_WORD			(('B' << 8) | 'L')
+
+/** All GPIO clocks */
+#define GPIO_CLOCKS			RCC_APB2ENR_IOPAEN | \
+					RCC_APB2ENR_IOPBEN | \
+					RCC_APB2ENR_IOPCEN | \
+					RCC_APB2ENR_IOPDEN | \
+					RCC_APB2ENR_IOPEEN
 
 /** End of stack symbol defined by the linker script */
 extern char _estack;
@@ -73,7 +80,16 @@ uint32_t VectorTable[] __attribute__ ((section(".isr_vector"))) = {
 	[INITIAL_MSP] = (uint32_t) &_estack,
 
 	/** Initial program counter (PC): Reset handler */
-	[INITIAL_RESET_HANDLER] = (uint32_t) Reset_Handler
+	[INITIAL_RESET_HANDLER] = (uint32_t) Reset_Handler,
+
+	/** BOOT pin definition, default is for BluePill board */
+	[BOOT_PIN] = PLATFORM_BOOT_PIN,
+
+	/** LED pin definition, default is for BluePill board */
+	[LED_PIN] = PLATFORM_LED_PIN,
+
+	/** DISC pin definition, default is for BluePill board */
+	[DISC_PIN] = PLATFORM_DISC_PIN
 };
 
 /**
@@ -259,7 +275,7 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 	 * then enter HID bootloader...
 	 */
 	while (get_and_clear_magic_word() ||
-		READ_BIT(GPIOB->IDR, GPIO_IDR_IDR2) ||
+		GPIO_Get(BOOT_PIN) ||
 		(check_user_code(USER_PROGRAM) == false)) {
 
 		/* Disconnect USB to force a re-enumaration in all
@@ -280,7 +296,7 @@ __attribute__ ((naked, section(".reset_handler"))) void Reset_Handler(void)
 	}
 
 	/* Turn GPIO clocks off */
-	CLEAR_BIT(RCC->APB2ENR,	LED1_CLOCK | DISC_CLOCK | RCC_APB2ENR_IOPBEN);
+	CLEAR_BIT(RCC->APB2ENR,	GPIO_CLOCKS);
 
 	/* Setup the stack pointer to the user-defined one */
 	__set_MSP((*(volatile uint32_t *) USER_PROGRAM));
