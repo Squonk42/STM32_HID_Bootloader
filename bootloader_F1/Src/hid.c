@@ -162,19 +162,17 @@ static uint8_t USB_LangIDStringDescriptor[] = {
 
 /** USB Vendor String Descriptor */
 static uint8_t USB_VendorStringDescriptor[] = {
-	0x22,			// bLength
+	0x14,			// bLength
 	0x03,			// bDescriptorType (String)
-	'w', 0, 'w', 0, 'w', 0, '.', 0, 's', 0, 'e', 0, 'r', 0, 'a', 0, 's', 0,
-	'i', 0, 'd', 0, 'i', 0, 's', 0, '.', 0, 'g', 0, 'r', 0
+	'S', 0, 'T', 0, 'M', 0, '3', 0, '2', 0, 'D', 0, 'u', 0, 'i', 0, 'n', 0,
+	'o', 0
 };
 
 /** USB Product String Descriptor */
 static uint8_t USB_ProductStringDescriptor[] = {
-	0x2C,			// bLength
+	0x12,			// bLength
 	0x03,			// bDescriptorType (String)
-	'S', 0, 'T', 0, 'M', 0, '3', 0, '2', 0, 'F', 0, ' ', 0, 'H', 0, 'I', 0,
-	'D', 0, ' ', 0, 'B', 0, 'o', 0, 'o', 0, 't', 0, 'l', 0, 'o', 0, 'a', 0,
-	'd', 0, 'e', 0, 'r', 0
+	'H', 0, 'I', 0,	'D', 0, ' ', 0, 'F', 0, '1', 0, 'B', 0, 'L', 0
 };
 
 /** USB String Descriptors */
