@@ -203,6 +203,7 @@ static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 {
 	uint16_t *descriptor = 0;
 	uint16_t length = 0;
+	unsigned int i = setup_packet->wValue.L;
 
 	switch (setup_packet->wValue.H) {
 	case USB_DEVICE_DESC_TYPE:
@@ -221,7 +222,6 @@ static void HIDUSB_GetDescriptor(USB_SetupPacket *setup_packet)
 		break;
 
 	case USB_STR_DESC_TYPE:
-		; unsigned int i = setup_packet->wValue.L;
 		if (i < sizeof (USB_StringDescriptors) /
 			sizeof (USB_StringDescriptors[0])) {
 			descriptor = (uint16_t *) USB_StringDescriptors[i];
