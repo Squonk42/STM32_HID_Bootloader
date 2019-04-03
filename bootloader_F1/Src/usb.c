@@ -35,10 +35,10 @@
 #include "hid.h"
 
 /** USB interrupt enable mask */
-#define CNTR_MASK	(CNTR_RESETM | CNTR_SUSPM | CNTR_WKUPM)
+#define CNTR_MASK		(CNTR_RESETM | CNTR_SUSPM | CNTR_WKUPM)
 
 /** USB interrupt flag mask */
-#define ISTR_MASK	(ISTR_CTR | ISTR_RESET | ISTR_SUSP | ISTR_WKUP)
+#define ISTR_MASK		(ISTR_CTR | ISTR_RESET | ISTR_SUSP | ISTR_WKUP)
 
 /** USB RX/TX buffer */
 USB_RxTxBuf_t RxTxBuffer[MAX_EP_NUM];
