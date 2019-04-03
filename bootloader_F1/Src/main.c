@@ -103,32 +103,12 @@ static bool check_flash_complete(void)
 
 		/* Blink the LED nervously */
 		if (counter++ & 0x00004000) {
-			LED1_ON;
+			GPIO_Set(LED_PIN);
 		} else {
-			LED1_OFF;
+			GPIO_Clear(LED_PIN);
 		}
 	}
 	return UploadFinished;
-}
-
-/**
- * @brief Check if the user code is valid.
- *
- * The check consists in making sure the user stack pointer in the
- * Vector Table points to somewhere in RAM.
- *
- * @param[in] user_address
- *   The user code start address.
- *
- * @return true if the user code is valid, false otherwise.
- */
-static bool check_user_code(uint32_t user_address)
-{
-	uint32_t sp = *(volatile uint32_t *) user_address;
-
-	/* Check if the stack pointer in the vector table points
-	   somewhere in SRAM */
-	return ((sp & 0x2FFE0000) == SRAM_BASE) ? true : false;
 }
 
 /**

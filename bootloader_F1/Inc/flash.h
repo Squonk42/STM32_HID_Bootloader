@@ -21,19 +21,41 @@
 #ifndef FLASH_H_
 #define FLASH_H_
 
+#include <stdbool.h>
+
 /* Actual reset handler in force */
 #define RESET_HANDLER		(*(uint32_t *) 0x4)
 
 /* Initial stack pointer index in vector table */
-#define INITIAL_MSP			0
+#define INITIAL_MSP		0
 
 /* Initial program counter index in vector table */
-#define INITIAL_RESET_HANDLER		1
+#define INITIAL_RESET_HANDLER	1
 
 /* Reset handler index in vector table*/
-#define USER_RESET_HANDLER		7
+#define USER_RESET_HANDLER	7
 
+/**
+ * @brief Check if the user code is valid.
+ *
+ * The check consists in making sure the user stack pointer in the
+ * Vector Table points to somewhere in RAM.
+ *
+ * @param[in] user_address
+ *   The user code start address.
+ *
+ * @return true if the user code is valid, false otherwise.
+ */
+static inline bool check_user_code(uint32_t user_address)
+{
+	uint32_t sp = *(volatile uint32_t *) user_address;
 
+	/* Check if the stack pointer in the vector table points
+	   somewhere in SRAM */
+	return ((sp & 0x2FFE0000) == SRAM_BASE) ? true : false;
+}
+
+/* Function Prototypes */
 void FLASH_WritePage(uint16_t *page, uint16_t *data, uint16_t size);
 
 #endif /* FLASH_H_ */

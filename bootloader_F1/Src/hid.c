@@ -293,7 +293,16 @@ static void HIDUSB_HandleData(uint8_t *data)
 			break;
 		}
 	} else if (CurrentPageOffset >= PAGE_SIZE) {
-		if (CurrentPage == 0) {
+		uint16_t *page_address = (uint16_t * ) (FLASH_BASE +
+			(CurrentPage * PAGE_SIZE));
+		if (page_address >= (uint16_t *) (RESET_HANDLER - 1)) {
+
+			/* Do not overwrite the bootloader */
+			return;
+		} else if (CurrentPage == 0) {
+			if (check_user_code((uint32_t) PageData) == false) {
+				return;
+			}
 
 			/* Patch the user Vector Table */
 			uint32_t *patched_vector_table =
